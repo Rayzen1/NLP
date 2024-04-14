@@ -140,6 +140,7 @@ def validate_abs(args, device_id):
             test_abs(args, device_id, cp, step)
     else:
         while (True):
+            topic_files = sorted(glob.glob("C:\\Users\\krisb\\Desktop\\PreSumm-master\\bert_data\\" + "cnndm" + '.[0-9]*.json'))
             cp_files = sorted(glob.glob(os.path.join(args.model_path, 'model_step_*.pt')))
             cp_files.sort(key=os.path.getmtime)
             if (cp_files):
@@ -180,15 +181,13 @@ def validate(args, device_id, pt, step):
     print(args)
 
     
-    
+
     valid_iter = data_loader.Dataloader(args, load_dataset(args, 'valid', shuffle=False),
                                         args.batch_size, device,
                                         shuffle=False, is_test=False)
     
-    te = valid_iter.topic()
-    model = AbsSummarizer(args, device, checkpoint,topic_embeddings=te)
+    model = AbsSummarizer(args, device, checkpoint, topic_embeddings=valid_iter.topic())
     model.eval()
-    
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True, cache_dir=args.temp_dir)
     symbols = {'BOS': tokenizer.vocab['[unused0]'], 'EOS': tokenizer.vocab['[unused1]'],
                'PAD': tokenizer.vocab['[PAD]'], 'EOQ': tokenizer.vocab['[unused2]']}
@@ -214,14 +213,13 @@ def test_abs(args, device_id, pt, step):
         if (k in model_flags):
             setattr(args, k, opt[k])
     print(args)
-
     test_iter = data_loader.Dataloader(args, load_dataset(args, 'test', shuffle=False),
                                        args.test_batch_size, device,
                                        shuffle=False, is_test=True)
-    
-    te = test_iter.topic()
-    model = AbsSummarizer(args, device, checkpoint,topic_embeddings=te)
+
+    model = AbsSummarizer(args, device, checkpoint, topic_embeddings=test_iter.topic())
     model.eval()
+
     
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True, cache_dir=args.temp_dir)
     symbols = {'BOS': tokenizer.vocab['[unused0]'], 'EOS': tokenizer.vocab['[unused1]'],
@@ -244,15 +242,12 @@ def test_text_abs(args, device_id, pt, step):
         if (k in model_flags):
             setattr(args, k, opt[k])
     print(args)
-
     test_iter = data_loader.Dataloader(args, load_dataset(args, 'test', shuffle=False),
                                        args.test_batch_size, device,
                                        shuffle=False, is_test=True)
-    
-    te = test_iter.topic()
-    model = AbsSummarizer(args, device, checkpoint,topic_embeddings=te)
+    model = AbsSummarizer(args, device, checkpoint, topic_embeddings=test_iter.topic())
     model.eval()
-    
+
     
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True, cache_dir=args.temp_dir)
     symbols = {'BOS': tokenizer.vocab['[unused0]'], 'EOS': tokenizer.vocab['[unused1]'],
@@ -343,7 +338,6 @@ def train_abs_single(args, device_id):
     trainer = build_trainer(args, device_id, model, optim, train_loss)
 
     trainer.train(train_iter_fct(), args.train_steps)
-    
 def test_text_abs(args):
 
     logger.info('Loading checkpoint from %s' % args.test_from)
@@ -356,10 +350,12 @@ def test_text_abs(args):
             setattr(args, k, opt[k])
     print(args)
 
-    model = AbsSummarizer(args, device, checkpoint)
+    test_iter = data_loader.load_text(args, args.text_src, args.text_tgt, device)
+
+    model = AbsSummarizer(args, device, checkpoint, topic_embeddings=test_iter.topic())
     model.eval()
 
-    test_iter = data_loader.load_text(args, args.text_src, args.text_tgt, device)
+    
 
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True, cache_dir=args.temp_dir)
     symbols = {'BOS': tokenizer.vocab['[unused0]'], 'EOS': tokenizer.vocab['[unused1]'],
